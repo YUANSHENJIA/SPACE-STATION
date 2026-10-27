@@ -1,0 +1,1960 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 屏显数字字体：Orbitron（自托管，11.8KB，断网也能用） */
+@font-face {
+  font-family: 'Orbitron';
+  src: url('./fonts/orbitron-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  /* 只声明拉丁与数字的覆盖范围：中文字形直接跳过它，落到栈里的黑体，
+     否则中文会改用 Orbitron 的默认回退字体，字重和两侧对不上 */
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FFFD;
+}
+
+:root {
+  /* 数字优先用 Orbitron；它没有中文字形，中文自动落回系统黑体 */
+  --font-num: 'Orbitron', 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: #e6eefb;
+  font-family: 'HarmonyOS Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+}
+
+#scene:active {
+  cursor: grabbing;
+}
+
+.vignette {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    rgba(0, 0, 0, 0) 44%,
+    rgba(0, 0, 0, 0.26) 78%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+  z-index: 2;
+}
+
+/* ------------------------------------------------------------------ hud */
+
+.hud {
+  position: fixed;
+  z-index: 3;
+  pointer-events: none;
+  letter-spacing: 0.02em;
+}
+
+.hud-top {
+  top: 32px;
+  left: 38px;
+  max-width: 460px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.24em;
+  color: #7fa8d8;
+  text-transform: uppercase;
+  border: 1px solid rgba(126, 168, 216, 0.26);
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: rgba(10, 22, 38, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #58d0ff;
+  box-shadow: 0 0 10px #58d0ff;
+  animation: pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.32;
+  }
+}
+
+.hud-top h1 {
+  margin-top: 15px;
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #f2f7ff;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.85);
+}
+
+.hud-top .sub {
+  margin-top: 8px;
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  /* 副标题常压在银河亮部上，60% 透明会糊掉，加投影 + 提到 72% 才读得清 */
+  color: rgba(198, 220, 245, 0.72);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.92), 0 0 2px rgba(0, 0, 0, 0.75);
+}
+
+.hint {
+  position: fixed;
+  left: 38px;
+  bottom: 28px;
+  z-index: 3;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: rgba(170, 198, 230, 0.45);
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- panel */
+
+#panel {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  bottom: 24px;
+  width: 306px;
+  max-height: none;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 6px;
+  overflow: hidden;
+  color: #d6e8fa;
+  background:
+    linear-gradient(180deg, rgba(10, 26, 43, 0.9), rgba(4, 11, 20, 0.95));
+  border: 1px solid rgba(96, 170, 230, 0.22);
+  border-radius: 2px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(150, 215, 255, 0.14),
+    inset 0 0 70px rgba(24, 80, 130, 0.16);
+  backdrop-filter: blur(16px) saturate(1.2);
+}
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 13px 9px;
+  border-bottom: 1px solid rgba(96, 170, 230, 0.18);
+  background: linear-gradient(180deg, rgba(30, 78, 118, 0.28), rgba(10, 26, 42, 0));
+}
+
+.panel-title {
+  margin-top: 4px;
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+  color: #e9f4ff;
+}
+
+.ghost {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  color: rgba(180, 208, 240, 0.8);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(120, 168, 220, 0.28);
+  border-radius: 2px;
+  padding: 5px 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.ghost:hover {
+  color: #fff;
+  border-color: rgba(120, 220, 255, 0.7);
+  box-shadow: 0 0 12px rgba(90, 200, 255, 0.35);
+}
+
+.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 4px 13px 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 160, 210, 0.35) transparent;
+}
+
+.panel-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.panel-body::-webkit-scrollbar-thumb {
+  background: rgba(110, 160, 210, 0.3);
+  border-radius: 2px;
+}
+
+#panel.collapsed .panel-body {
+  display: none;
+}
+
+section {
+  padding: 6px 0 2px;
+  border-bottom: 1px dashed rgba(96, 170, 230, 0.14);
+}
+
+section:last-child {
+  border-bottom: none;
+}
+
+/* 分组标题 */
+.grp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: rgba(170, 214, 250, 0.92);
+}
+
+.grp:first-child {
+  margin-top: 3px;
+}
+
+.grp b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  color: rgba(88, 148, 198, 0.62);
+}
+
+.grp i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(96, 170, 230, 0.34), rgba(96, 170, 230, 0));
+}
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: rgba(150, 190, 228, 0.62);
+}
+
+.sec-head b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: rgba(140, 210, 255, 0.9);
+  font-variant-numeric: tabular-nums;
+}
+
+.sec-head b.ok {
+  color: #9fe0ff;
+}
+
+.sec-head b.warn {
+  color: #7fbdf0;
+}
+
+.sec-head b.hot {
+  color: #c3ecff;
+}
+
+/* 单位比读数小一号、压暗，避免“7.672 km/s”整体抢眼 */
+.sec-head b i {
+  font-style: normal;
+  font-size: 7px;
+  letter-spacing: 0;
+  color: rgba(128, 176, 218, 0.66);
+  margin-left: 1px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+.row.two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+button {
+  font-family: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: rgba(206, 228, 248, 0.86);
+  background: linear-gradient(180deg, rgba(22, 52, 80, 0.55), rgba(8, 20, 34, 0.6));
+  border: 1px solid rgba(96, 170, 230, 0.26);
+  border-radius: 2px;
+  padding: 6px 5px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+button:hover {
+  color: #eaf8ff;
+  border-color: rgba(120, 220, 255, 0.6);
+  background: linear-gradient(180deg, rgba(34, 86, 128, 0.6), rgba(10, 28, 46, 0.65));
+  box-shadow: 0 0 14px rgba(80, 190, 255, 0.22);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button.on {
+  color: #bff1ff;
+  border-color: rgba(90, 215, 255, 0.62);
+  background: linear-gradient(180deg, rgba(22, 96, 142, 0.5), rgba(8, 36, 58, 0.6));
+  box-shadow: inset 0 0 18px rgba(70, 190, 255, 0.22), 0 0 12px rgba(70, 190, 255, 0.18);
+}
+
+button.flash {
+  color: #fff;
+  border-color: rgba(120, 220, 255, 0.9);
+  background: rgba(60, 150, 220, 0.55);
+}
+
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.sec-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: rgba(150, 182, 218, 0.42);
+}
+
+.sec-foot b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  color: rgba(150, 205, 245, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+}
+
+button.wide {
+  width: 100%;
+  margin-top: 7px;
+}
+
+button.lifter {
+  color: #d8f2ff;
+  border-color: rgba(110, 190, 255, 0.55);
+  background: linear-gradient(180deg, rgba(32, 108, 178, 0.55), rgba(10, 44, 78, 0.5));
+  box-shadow: inset 0 0 18px rgba(70, 170, 255, 0.2);
+  letter-spacing: 0.12em;
+}
+
+button.lifter:hover {
+  color: #ffffff;
+  border-color: rgba(150, 220, 255, 0.9);
+  background: linear-gradient(180deg, rgba(44, 132, 205, 0.66), rgba(12, 52, 90, 0.56));
+}
+
+button.lifter.on {
+  color: #ffffff;
+  border-color: rgba(160, 225, 255, 0.95);
+  background: linear-gradient(180deg, rgba(52, 148, 222, 0.6), rgba(14, 58, 100, 0.5));
+  box-shadow: 0 0 18px rgba(80, 180, 255, 0.3);
+}
+
+button:disabled {
+  opacity: 0.42;
+  cursor: default;
+  transform: none;
+}
+
+/* ---------------------------------------------------------------- sliders */
+
+.slider {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  gap: 9px;
+  margin-top: 1px;
+  padding: 2px 0;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: rgba(150, 182, 218, 0.55);
+}
+
+.slider input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(70, 214, 255, 0.65), rgba(46, 155, 230, 0.4));
+  outline: none;
+  cursor: pointer;
+}
+
+.slider input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #eafcff;
+  border: 1px solid #5fd6ff;
+  box-shadow: 0 0 10px rgba(90, 215, 255, 0.9);
+  transform: rotate(45deg);
+  transition: box-shadow 0.15s ease;
+}
+
+.slider input[type='range']::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 16px rgba(120, 235, 255, 1);
+}
+
+.slider input[type='range']::-moz-range-thumb {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: #eafcff;
+  border: 1px solid #5fd6ff;
+}
+
+.bar {
+  margin-top: 8px;
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(96, 170, 230, 0.16) 0 6px,
+    transparent 6px 9px
+  );
+  overflow: hidden;
+}
+
+.bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #3ba7ff, #7ff0ff);
+  box-shadow: 0 0 10px rgba(90, 200, 255, 0.7);
+  transition: width 0.18s linear;
+}
+
+/* ------------------------------------------------- 左侧轨道遥测面板 */
+
+#telemetry {
+  position: fixed;
+  left: 34px;
+  top: 158px;
+  bottom: 24px;
+  width: 318px;
+  max-height: none;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-bottom: 11px;
+  color: #d6e8fa;
+  background: linear-gradient(180deg, rgba(10, 26, 43, 0.9), rgba(4, 11, 20, 0.95));
+  border: 1px solid rgba(96, 170, 230, 0.22);
+  border-radius: 2px;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.62),
+    inset 0 1px 0 rgba(150, 215, 255, 0.14),
+    inset 0 0 70px rgba(24, 80, 130, 0.16);
+  backdrop-filter: blur(16px) saturate(1.2);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 170, 220, 0.35) transparent;
+  -webkit-mask-image: none;
+}
+
+#telemetry::-webkit-scrollbar {
+  width: 4px;
+}
+
+#telemetry::-webkit-scrollbar-thumb {
+  background: rgba(110, 170, 220, 0.32);
+  border-radius: 2px;
+}
+
+/* 四角直角括号 */
+.t-corner {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  pointer-events: none;
+  border: 1px solid rgba(120, 228, 255, 0.85);
+  filter: drop-shadow(0 0 5px rgba(90, 215, 255, 0.55));
+  z-index: 3;
+}
+
+.t-corner.tl {
+  top: 3px;
+  left: 3px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.t-corner.tr {
+  top: 3px;
+  right: 3px;
+  border-left: 0;
+  border-bottom: 0;
+}
+
+.t-corner.bl {
+  bottom: 3px;
+  left: 3px;
+  border-right: 0;
+  border-top: 0;
+}
+
+.t-corner.br {
+  bottom: 3px;
+  right: 3px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* 面板抬头 */
+.t-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 13px 9px;
+  border-bottom: 1px solid rgba(96, 170, 230, 0.18);
+  background: linear-gradient(180deg, rgba(30, 78, 118, 0.28), rgba(10, 26, 42, 0));
+}
+
+.t-head-main {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.t-badge {
+  flex: 0 0 auto;
+  padding: 5px 5px 4px;
+  border-radius: 2px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #04202c;
+  background: linear-gradient(180deg, #96f2ff, #3cb6ee);
+  box-shadow: 0 0 16px rgba(90, 210, 255, 0.45);
+}
+
+.t-kicker {
+  font-size: 8px;
+  letter-spacing: 0.24em;
+  color: #5590c4;
+}
+
+.t-title {
+  margin-top: 4px;
+  font-size: 12.5px;
+  letter-spacing: 0.12em;
+  color: #e9f4ff;
+}
+
+.t-live {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  color: #7fd4ff;
+}
+
+.t-live i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #5fb8ff;
+  box-shadow: 0 0 9px #5fb8ff;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+/* 核心参数：2×2 放大读数 */
+.t-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 10px 12px 0;
+  border: 1px solid rgba(96, 170, 230, 0.16);
+  background: rgba(96, 170, 230, 0.16);
+}
+
+.t-hero-cell {
+  position: relative;
+  padding: 9px 10px 8px;
+  background: linear-gradient(180deg, rgba(12, 32, 52, 0.96), rgba(5, 15, 26, 0.96));
+}
+
+.t-hero-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 1px;
+  background: rgba(120, 225, 255, 0.75);
+}
+
+.t-big {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 4px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+.t-big b {
+  font-size: 27px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #b6f0ff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 20px rgba(90, 215, 255, 0.55);
+}
+
+.t-big em {
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: rgba(140, 195, 235, 0.7);
+}
+
+/* 次级参数：横排三格 */
+.t-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  margin: 8px 12px 0;
+  border: 1px solid rgba(96, 170, 230, 0.12);
+  background: rgba(96, 170, 230, 0.12);
+}
+
+.t-strip > div {
+  padding: 6px 8px;
+  background: linear-gradient(180deg, rgba(9, 25, 40, 0.92), rgba(4, 12, 21, 0.92));
+}
+
+.t-strip span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  color: rgba(140, 182, 222, 0.55);
+  white-space: nowrap;
+}
+
+.t-strip b {
+  display: inline-block;
+  margin-top: 3px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #9fe4ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-strip em {
+  font-style: normal;
+  margin-left: 2px;
+  font-size: 7.5px;
+  color: rgba(120, 170, 215, 0.55);
+}
+
+/* 四格读数 */
+.t-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 10px 12px 0;
+  border: 1px solid rgba(96, 170, 230, 0.14);
+  background: rgba(96, 170, 230, 0.14);
+}
+
+.t-cell {
+  position: relative;
+  padding: 7px 9px 6px;
+  background: linear-gradient(180deg, rgba(11, 30, 48, 0.95), rgba(5, 15, 26, 0.95));
+}
+
+.t-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9px;
+  height: 1px;
+  background: rgba(120, 225, 255, 0.65);
+}
+
+.t-lab {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  font-size: 8.5px;
+  letter-spacing: 0.13em;
+  color: rgba(154, 192, 228, 0.68);
+}
+
+.t-lab span {
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: rgba(88, 148, 198, 0.55);
+}
+
+.t-num {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-top: 3px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+}
+
+.t-num b {
+  font-size: 18.5px;
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: #a9edff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 16px rgba(90, 215, 255, 0.5);
+}
+
+.t-num em {
+  font-style: normal;
+  font-size: 8.5px;
+  letter-spacing: 0.05em;
+  color: rgba(140, 190, 232, 0.72);
+}
+
+.t-sub {
+  margin-top: 1px;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: rgba(118, 168, 212, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 轨道示意 + 侧栏读数 */
+.t-orbit {
+  display: grid;
+  grid-template-columns: 84px 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 7px 12px 0;
+  padding: 5px 0;
+  border-top: 1px dashed rgba(96, 170, 230, 0.16);
+  border-bottom: 1px dashed rgba(96, 170, 230, 0.16);
+}
+
+.t-orbit svg {
+  display: block;
+  width: 84px;
+  height: 84px;
+}
+
+.t-orbit-side > div {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3.5px 0;
+  border-bottom: 1px solid rgba(96, 170, 230, 0.08);
+}
+
+.t-orbit-side > div:last-child {
+  border-bottom: 0;
+}
+
+.t-orbit-side span {
+  flex: 1;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  color: rgba(140, 182, 222, 0.55);
+}
+
+.t-orbit-side b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: #9fe4ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.t-orbit-side em {
+  font-style: normal;
+  font-size: 7.5px;
+  color: rgba(120, 170, 215, 0.55);
+}
+
+/* 编队控制 */
+.t-ctrl {
+  margin: 7px 12px 0;
+}
+
+.t-ctrl-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: rgba(150, 190, 228, 0.62);
+}
+
+.t-ctrl-head b {
+  font-weight: 400;
+  font-size: 7px;
+  letter-spacing: 0.14em;
+  color: rgba(88, 148, 198, 0.5);
+}
+
+.t-ctl {
+  margin-bottom: 11px;
+}
+
+.t-ctl-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.t-ctl-top label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(174, 208, 240, 0.85);
+}
+
+.t-ctl-top b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #a9edff;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px rgba(90, 215, 255, 0.45);
+}
+
+.t-ctl-top b em {
+  font-style: normal;
+  font-size: 8.5px;
+  font-weight: 400;
+  margin-left: 2px;
+  color: rgba(140, 190, 232, 0.65);
+  text-shadow: none;
+}
+
+/* 菱形滑块 */
+.t-range {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 14px;
+  background: transparent;
+  outline: none;
+  cursor: pointer;
+}
+
+.t-range::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    #46d6ff 0,
+    #2e9be6 var(--p, 50%),
+    rgba(110, 170, 220, 0.16) var(--p, 50%),
+    rgba(110, 170, 220, 0.16) 100%
+  );
+  box-shadow: 0 0 12px rgba(70, 190, 255, 0.18);
+}
+
+.t-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 11px;
+  height: 11px;
+  margin-top: -4px;
+  border-radius: 2px;
+  background: #eafcff;
+  border: 1px solid #5fd6ff;
+  box-shadow: 0 0 10px rgba(90, 215, 255, 0.9);
+  transform: rotate(45deg);
+  transition: box-shadow 0.16s ease, background 0.16s ease;
+}
+
+.t-range:hover::-webkit-slider-thumb {
+  background: #ffffff;
+  box-shadow: 0 0 16px rgba(120, 235, 255, 1);
+}
+
+.t-range::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(110, 170, 220, 0.16);
+}
+
+.t-range::-moz-range-progress {
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #46d6ff, #2e9be6);
+}
+
+.t-range::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #eafcff;
+  border: 1px solid #5fd6ff;
+  box-shadow: 0 0 10px rgba(90, 215, 255, 0.9);
+  transform: rotate(45deg);
+}
+
+.t-read {
+  display: flex;
+  gap: 7px;
+  margin-top: 2px;
+}
+
+.t-read > div {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid rgba(96, 170, 230, 0.14);
+  background: linear-gradient(180deg, rgba(14, 38, 58, 0.7), rgba(6, 18, 30, 0.7));
+}
+
+.t-read span {
+  display: block;
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: rgba(140, 182, 222, 0.55);
+}
+
+.t-read b {
+  display: block;
+  margin-top: 3px;
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #9fe4ff;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 面板底栏 */
+.t-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 9px 12px 0;
+  padding-top: 7px;
+  border-top: 1px solid rgba(96, 170, 230, 0.14);
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 7px;
+  letter-spacing: 0.16em;
+  color: rgba(96, 152, 200, 0.5);
+}
+
+.t-foot b {
+  margin-left: auto;
+  font-weight: 500;
+  color: rgba(120, 200, 240, 0.72);
+}
+
+.t-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.5px;
+  height: 9px;
+}
+
+.t-bars i {
+  width: 2px;
+  transform-origin: bottom center;
+  background: linear-gradient(180deg, #6fe6ff, #2a86e0);
+  box-shadow: 0 0 5px rgba(90, 215, 255, 0.55);
+  animation: tBars 1.5s ease-in-out infinite;
+}
+
+.t-bars i:nth-child(1) {
+  height: 3px;
+  animation-delay: 0s;
+}
+
+.t-bars i:nth-child(2) {
+  height: 5px;
+  animation-delay: 0.18s;
+}
+
+.t-bars i:nth-child(3) {
+  height: 7px;
+  animation-delay: 0.36s;
+}
+
+.t-bars i:nth-child(4) {
+  height: 9px;
+  animation-delay: 0.54s;
+}
+
+@keyframes tBars {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scaleY(0.45);
+  }
+}
+
+/* --------------------------------------------------------------- loader */
+
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  background: #000;
+  transition: opacity 0.9s ease, visibility 0.9s ease;
+}
+
+#loader.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.loader-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.ring {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid rgba(120, 170, 220, 0.18);
+  border-top-color: #66c8ff;
+  animation: spin 1.1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-text {
+  font-size: 11px;
+  letter-spacing: 0.28em;
+  color: rgba(150, 185, 220, 0.7);
+}
+
+/* --------------------------------------------------------------- mobile */
+
+@media (max-width: 860px) {
+  .hud-top {
+    top: 18px;
+    left: 18px;
+    max-width: 62vw;
+  }
+
+  .hud-top h1 {
+    font-size: 18px;
+  }
+  .hud-top .sub {
+    display: none;
+  }
+  .hint {
+    left: 18px;
+    bottom: 16px;
+    font-size: 9.5px;
+  }
+  #panel {
+    top: auto;
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    max-height: 56vh;
+  }
+
+  #telemetry {
+    display: flex;
+    flex-direction: column;
+    left: 12px;
+    right: 12px;
+    top: 84px;
+    width: auto;
+    max-height: 38vh;
+    padding-bottom: 9px;
+  }
+
+  /* 手机屏窄，轨道示意图先让位给滑块和读数 */
+  #telemetry .t-orbit {
+    display: none;
+  }
+
+  #telemetry .t-head {
+    order: 0;
+  }
+
+  /* 手机上一行放四个核心参数，滑块紧跟在下面 */
+  #telemetry .t-hero {
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 9px;
+  }
+
+  #telemetry .t-hero-cell {
+    padding: 7px 7px 6px;
+  }
+
+  #telemetry .t-big b {
+    font-size: 17px;
+  }
+
+  #telemetry .t-big em {
+    font-size: 7.5px;
+  }
+
+  #telemetry .t-sub {
+    font-size: 7.5px;
+  }
+
+  #telemetry .t-ctrl {
+    order: 1;
+    margin-top: 9px;
+  }
+
+  #telemetry .t-strip {
+    order: 2;
+  }
+
+  #telemetry .t-orbit {
+    order: 3;
+  }
+
+  /* 环境与构型排在编队参数之后 */
+  #telemetry .t-grp,
+  #telemetry section {
+    order: 4;
+  }
+
+  #telemetry .t-foot {
+    order: 5;
+  }
+
+  .t-lab span {
+    display: none;
+  }
+
+  .t-kicker {
+    letter-spacing: 0.16em;
+    white-space: nowrap;
+  }
+
+  .t-ctl {
+    margin-bottom: 8px;
+  }
+
+  .t-orbit {
+    grid-template-columns: 70px 1fr;
+    gap: 8px;
+  }
+
+  .t-orbit svg {
+    width: 70px;
+    height: 70px;
+  }
+}
+
+/* 中等/矮屏（笔记本 900p 及以下）：轨道星链是这轮新加的一行，
+   多出来的 39px 必须从间距里省回来 —— 只压留白与刻度，参数值与字号层级都不动。
+   放在 ≤820 那一档之前，短屏的更强压缩仍然优先。 */
+@media (min-width: 861px) and (max-height: 1000px) {
+  #telemetry .t-head {
+    padding: 9px 13px 7px;
+  }
+
+  #telemetry .t-ctl {
+    margin-bottom: 8px;
+  }
+
+  #telemetry .t-ctrl-head {
+    margin-bottom: 6px;
+  }
+
+
+
+  #telemetry .t-read > div {
+    padding: 5px 8px;
+  }
+
+  #telemetry .t-day {
+    padding-top: 4px;
+  }
+
+  #telemetry .t-day-svg {
+    max-height: min(160px, 11vh);
+  }
+}
+
+/* 矮屏（笔记本 / 720p）：整体压紧，保证一屏看完 */
+@media (min-width: 861px) and (max-height: 820px) {
+  #telemetry {
+    top: 146px;
+    padding-bottom: 8px;
+  }
+
+  #telemetry .t-head {
+    padding: 8px 13px 7px;
+  }
+
+  /* 矮屏：四个核心参数压成一行，副值让位 */
+  #telemetry .t-hero {
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 8px;
+  }
+
+  #telemetry .t-hero-cell {
+    padding: 7px 8px 6px;
+  }
+
+  #telemetry .t-big {
+    gap: 2px;
+  }
+
+  #telemetry .t-big b {
+    font-size: 17px;
+  }
+
+  #telemetry .t-big em {
+    font-size: 7px;
+  }
+
+  #telemetry .t-lab span {
+    display: none;
+  }
+
+  #telemetry .t-sub {
+    display: none;
+  }
+
+  /* 面板压到底部时，左下角操作提示让位 */
+  .hint {
+    display: none;
+  }
+
+  #telemetry .t-strip > div {
+    padding: 5px 7px;
+  }
+
+  #telemetry .t-strip b {
+    font-size: 12px;
+  }
+
+  #telemetry .t-orbit {
+    grid-template-columns: 76px 1fr;
+    margin-top: 8px;
+    padding: 5px 0;
+  }
+
+  #telemetry .t-orbit svg {
+    width: 76px;
+    height: 76px;
+  }
+
+  #telemetry .t-ctrl {
+    margin-top: 8px;
+  }
+
+  #telemetry .t-ctl {
+    margin-bottom: 8px;
+  }
+
+  #telemetry .t-foot {
+    margin-top: 6px;
+    padding-top: 5px;
+  }
+}
+
+/* 矮屏第二档：轨道星链块是这轮新加的，矮屏上必须自己把空间让出来，
+   否则 1366×768 会多出 40px 滚动条 —— 只压间距与刻度字，不动任何参数值 */
+@media (min-width: 861px) and (max-height: 820px) {
+  #telemetry .t-ctl {
+    margin-bottom: 5px;
+  }
+
+
+
+  #telemetry .t-read > div {
+    padding: 5px 8px;
+  }
+
+  #telemetry .t-day-svg {
+    max-height: min(160px, 12vh);
+  }
+}
+
+/* 矮屏：光照示意图略收，720p 下刚好不溢出 */
+@media (max-height: 820px) {
+  #telemetry .t-day {
+    padding-top: 2px;
+  }
+}
+
+/* 矮屏再加一档：右侧 section 最多，逐项收 1~2px 就能整块省出 50px */
+@media (max-height: 820px) {
+  #panel .panel-head {
+    padding: 8px 12px 7px;
+  }
+
+  #panel .panel-body {
+    padding: 2px 12px 4px;
+  }
+
+  #panel section {
+    padding: 5px 0 2px;
+  }
+
+  #panel .sec-head {
+    margin-bottom: 3px;
+  }
+
+  #panel button {
+    padding: 5px 5px;
+    font-size: 10px;
+  }
+
+  #panel .grp {
+    margin: 6px 0 0;
+  }
+
+  #panel .sec-foot {
+    margin-top: 3px;
+  }
+
+  #panel .slider {
+    padding: 1px 0;
+  }
+}
+
+/* ------------------------------------------- 左侧面板内嵌的环境与构型分组 */
+
+#telemetry .t-grp {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 11px 0 1px;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  color: rgba(170, 214, 250, 0.92);
+}
+
+#telemetry .t-grp b {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 7px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  color: rgba(88, 148, 198, 0.62);
+}
+
+#telemetry .t-grp i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(96, 170, 230, 0.34), rgba(96, 170, 230, 0));
+}
+
+#telemetry section {
+  padding: 6px 0 3px;
+}
+
+#telemetry .sec-head {
+  margin-bottom: 4px;
+}
+
+#telemetry .slider {
+  padding: 2px 0;
+}
+
+#telemetry .chips {
+  gap: 5px;
+}
+
+#telemetry .chips button {
+  padding: 5px 3px;
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------- 左侧面板内嵌的光照区段示意图形 */
+
+.t-day {
+  padding-top: 6px;
+}
+
+.t-day .sec-head {
+  margin-bottom: 2px;
+}
+
+/* 剩下的高度均摊到各块之间，标题与图形不分家 */
+#telemetry .t-day {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.t-day-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 图随视口高度伸缩：高屏给足，矮屏自动收，面板始终撑到底 */
+  max-height: min(160px, 14vh);
+  margin: 0;
+  overflow: visible;
+}
+
+.t-day-lab {
+  font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+  font-size: 6.8px;
+  letter-spacing: 0.1em;
+  fill: rgba(122, 168, 212, 0.5);
+}
+
+/* 光面偏亮、暗面压暗：靠明度区分，不引入第二个色相 */
+#dayState {
+  color: #9fd8ff;
+}
+
+.t-day .sec-head b {
+  font-size: 8.5px;
+  letter-spacing: 0.02em;
+  color: rgba(128, 176, 218, 0.7);
+}
+
+#dayState.night {
+  color: #5b82ab;
+}
+
+/* 空格平移态：光标换成抓手，拖拽时闭合 */
+body.space-pan #scene {
+  cursor: grab;
+}
+
+body.space-pan #scene:active {
+  cursor: grabbing;
+}
+
+/* ------------------------------------------------ 底部控制区 dock */
+/* 造型 + 视角 + 辅助三块并排；空白区域不挡住画布拖拽（pointer-events 穿透） */
+
+#dock {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  max-width: calc(100vw - 40px);
+  pointer-events: none;
+}
+
+#dock > * {
+  pointer-events: auto;
+}
+
+.dock-side {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px;
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(120, 190, 245, 0.035) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(10, 26, 43, 0.86), rgba(4, 11, 20, 0.92));
+  border: 1px solid rgba(96, 170, 230, 0.24);
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(150, 215, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+
+#dock .chips {
+  display: flex;
+  grid-template-columns: none;
+  gap: 3px;
+  padding: 0;
+}
+
+#dock .chips button,
+.dock-right button {
+  min-width: 0;
+  padding: 7px 9px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+#dock .chips button:hover,
+.dock-right button:hover {
+  background: rgba(34, 86, 128, 0.42);
+  border-color: rgba(120, 220, 255, 0.4);
+}
+
+#dock .chips button.on {
+  color: #cbf6ff;
+  border-color: rgba(90, 215, 255, 0.55);
+  background: linear-gradient(180deg, rgba(26, 104, 152, 0.55), rgba(8, 36, 58, 0.5));
+  box-shadow:
+    inset 0 0 16px rgba(70, 190, 255, 0.2),
+    0 0 14px rgba(70, 190, 255, 0.16);
+}
+
+.dock-right button {
+  letter-spacing: 0.08em;
+}
+
+.dock-right button.on {
+  color: #cbf6ff;
+  border-color: rgba(90, 215, 255, 0.55);
+  background: linear-gradient(180deg, rgba(26, 104, 152, 0.55), rgba(8, 36, 58, 0.5));
+  box-shadow:
+    inset 0 0 16px rgba(70, 190, 255, 0.2),
+    0 0 14px rgba(70, 190, 255, 0.16);
+}
+
+
+/* -------------------------------------------------- 视角切换条（dock 中段） */
+
+#viewbar {
+  position: relative;
+  transform: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 3px;
+  background:
+    linear-gradient(rgba(120, 190, 245, 0.035) 1px, transparent 1px) 0 0 / 14px 14px,
+    linear-gradient(180deg, rgba(10, 26, 43, 0.86), rgba(4, 11, 20, 0.92));
+  border: 1px solid rgba(96, 170, 230, 0.24);
+  box-shadow:
+    0 18px 44px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(150, 215, 255, 0.14);
+  backdrop-filter: blur(14px) saturate(1.25);
+}
+
+#viewbar::before,
+#viewbar::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border: 1px solid rgba(120, 228, 255, 0.7);
+  transform: rotate(45deg);
+}
+
+#viewbar button {
+  min-width: 68px;
+  padding: 8px 10px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+#viewbar button:hover {
+  background: rgba(34, 86, 128, 0.42);
+  border-color: rgba(120, 220, 255, 0.4);
+}
+
+#viewbar button.on {
+  color: #cbf6ff;
+  border-color: rgba(90, 215, 255, 0.55);
+  background: linear-gradient(180deg, rgba(26, 104, 152, 0.55), rgba(8, 36, 58, 0.5));
+  box-shadow:
+    inset 0 0 16px rgba(70, 190, 255, 0.2),
+    0 0 14px rgba(70, 190, 255, 0.16);
+}
+
+
+/* 中窄屏 / 矮屏：造型与辅助按钮改用两字短标签，整条 dock 才不会顶到左右面板 */
+@media (max-width: 1500px), (max-height: 780px) {
+  #dock {
+    gap: 6px;
+  }
+
+  #dock .chips button,
+  .dock-right button {
+    font-size: 0;
+    padding: 7px 8px;
+  }
+
+  #dock .chips button::after,
+  .dock-right button::after {
+    content: attr(data-short);
+    font-size: 9.5px;
+    letter-spacing: 0.04em;
+  }
+
+  #viewbar {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  #viewbar button {
+    min-width: 0;
+    padding: 7px 9px;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+}
+
+/* 极窄（平板横屏）：dock 一行放不下，折成两行；两侧面板同步把底部让出来 */
+@media (max-width: 1150px) {
+  #dock {
+    flex-wrap: wrap;
+    gap: 5px;
+    max-width: calc(100vw - 24px);
+  }
+
+  #dock .chips button::after,
+  .dock-right button::after {
+    font-size: 9px;
+  }
+
+  #viewbar button {
+    padding: 7px 7px;
+    font-size: 9.5px;
+    letter-spacing: 0.02em;
+  }
+
+  #telemetry {
+    bottom: 84px;
+  }
+
+  #panel {
+    bottom: 84px;
+  }
+}
+
+@media (max-width: 860px) {
+  #dock {
+    bottom: 74px;
+    flex-wrap: wrap;
+    gap: 5px;
+    max-width: calc(100vw - 24px);
+  }
+
+  #dock .chips button::after,
+  .dock-right button::after {
+    font-size: 9px;
+  }
+}
+
+/* 平板横屏（窄且矮）：两侧面板再压一档，宁可密一点也不要出现滚动条 */
+@media (max-width: 1150px) and (max-height: 740px) {
+  #telemetry {
+    bottom: 78px;
+  }
+
+  #telemetry .t-day-svg {
+    max-height: 48px;
+  }
+
+  /* 这一档实在没余量：只压间距（滑块间距六根一致地收），参数本身不动 */
+  #telemetry .t-hero {
+    margin-top: 6px;
+  }
+
+  #telemetry .t-strip {
+    margin-top: 6px;
+  }
+
+  #telemetry .t-ctl {
+    margin-bottom: 0;
+  }
+
+  #telemetry .t-ctrl-head {
+    margin-bottom: 4px;
+  }
+
+  #telemetry .t-read {
+    margin-top: 0;
+  }
+
+  #telemetry .t-read > div {
+    padding: 4px 8px;
+  }
+
+  #panel {
+    bottom: 78px;
+  }
+
+  #panel .panel-head {
+    padding: 7px 10px 6px;
+  }
+
+  #panel .panel-body {
+    padding: 1px 9px 3px;
+  }
+
+  #panel section {
+    padding: 2px 0 1px;
+  }
+
+  #panel .sec-head {
+    margin-bottom: 2px;
+  }
+
+  #panel .grp {
+    margin: 4px 0 0;
+  }
+
+  #panel button {
+    padding: 4px 4px;
+    font-size: 9.5px;
+  }
+
+  #panel .sec-foot {
+    margin-top: 2px;
+    padding-top: 2px;
+  }
+
+  #panel .slider {
+    padding: 0;
+  }
+}
+
+
+/* ------------------------------------------- 屏显数字：统一换 Orbitron */
+
+.t-big,
+.t-big b,
+.t-big em,
+.t-sub,
+.t-strip b,
+.t-strip em,
+.t-ctl-top b,
+.t-ctl-top b em,
+.t-read b,
+.sec-head b,
+.sec-head b i,
+.tag,
+#speedVal,
+#moveSpeed,
+#launchDist,
+.t-day-lab {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Orbitron 的字面比等宽体宽一档，收紧一点字距才不至于把格子撑满 */
+.t-big b,
+.t-strip b,
+.t-ctl-top b,
+.sec-head b,
+.t-read b {
+  letter-spacing: -0.01em;
+}
+
+/* 720p 以下四个核心参数挤成一行，Orbitron 更宽，字号得跟着让一步 */
+@media (min-width: 861px) and (max-height: 820px) {
+  #telemetry .t-big b {
+    font-size: 15px;
+    letter-spacing: -0.02em;
+  }
+}
+
+@media (max-width: 860px) {
+  #telemetry .t-big b {
+    font-size: 14px;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ------------------------------------- 720p 这一档：一屏要装 4 个滑块 + 光照图 + 12 个操作组 */
+@media (min-width: 861px) and (max-height: 745px) {
+  #telemetry .t-ctl {
+    margin-bottom: 3px;
+  }
+
+  #telemetry .t-ctl-top {
+    margin-bottom: 3px;
+  }
+
+
+  #panel section {
+    padding: 3px 0 1px;
+  }
+
+  #panel .grp {
+    margin: 3px 0 0;
+  }
+}
+
+/* 平板横屏：更窄，只压滑块间距（六根一致收） */
+@media (max-width: 1150px) and (max-height: 740px) {
+  #telemetry .t-head {
+    padding: 7px 11px 6px;
+  }
+
+  #telemetry .t-ctl {
+    margin-bottom: 0;
+  }
+
+  #telemetry .t-ctl-top {
+    margin-bottom: 1px;
+  }
+}
+
+/* 1024×700：右侧 12 个操作组还要再抠 30px，才不出现滚动条 */
+@media (max-width: 1150px) and (max-height: 740px) {
+  #panel section {
+    padding: 1px 0 0;
+  }
+
+  #panel .grp {
+    margin: 2px 0 0;
+  }
+
+  #panel .dpad {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 1150px) and (max-height: 740px) {
+  #panel .panel-body {
+    padding: 1px 9px 2px;
+  }
+}
+
+/* 右侧面板撑满：每个操作块自己长高、内容居中，组标题才不会被空白拉走 */
+#panel .panel-body > section {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+@media (max-width: 1150px) and (max-height: 740px) {
+  /* 这一档没有富余高度，区块不许再长，否则多出 1px 滚动 */
+  #panel .panel-body > section {
+    flex: 0 1 auto;
+  }
+}
+
+@media (max-width: 1150px) and (max-height: 740px) {
+  #panel section {
+    padding: 0;
+  }
+}
+
+/* ============================================ 磨砂玻璃面板（覆盖上面的基础规则）
+
+   三层叠起来才像磨砂：
+   ① 极细颗粒（feTurbulence 噪点）—— 纯模糊只会像毛玻璃贴膜，颗粒才给出“砂”的触感
+   ② 顶部冷调高光 —— 保住原来的 HUD 风格（22px 技术网格已去掉，颗粒已经够“砂”）
+   ③ 半透明深蓝罩色 —— 只压到 0.5 左右，后面的地球、星空要真的透出来
+   backdrop-filter 半径提到 30px：半径小的时候边缘会露出后面物体的轮廓，
+   一眼就看出是“半透明色块”而不是磨砂。 */
+#panel,
+#telemetry {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='150' height='150' filter='url(%23n)' opacity='0.15'/%3E%3C/svg%3E")
+      0 0 / 150px 150px repeat,
+    radial-gradient(130% 55% at 50% -8%, rgba(126, 200, 255, 0.2), rgba(126, 200, 255, 0) 72%),
+    linear-gradient(180deg, rgba(18, 43, 66, 0.5), rgba(3, 9, 17, 0.72));
+  border: 1px solid rgba(158, 210, 248, 0.2);
+  box-shadow:
+    0 26px 70px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(196, 234, 255, 0.26),
+    inset 0 0 64px rgba(10, 40, 66, 0.32);
+  backdrop-filter: blur(30px) saturate(1.45);
+  -webkit-backdrop-filter: blur(30px) saturate(1.45);
+}
+
+/* 内部读数格也要跟着透。改动之前这里是 0.92~0.96 的实色，
+   面板再透也会被这些格子整片盖死，磨砂只留在四周的窄边上。 */
+.t-hero-cell,
+.t-strip > div,
+.t-cell,
+.t-read > div {
+  background: linear-gradient(180deg, rgba(19, 46, 70, 0.4), rgba(6, 16, 28, 0.44));
+}
+
+/* 直接贴在玻璃上的文字加一层极轻的暗描边，亮地球转到面板后面时不至于糊掉 */
+#telemetry .t-lab,
+#telemetry .t-sub,
+#telemetry #panel .sec-head span,
+#panel .sec-foot {
+  text-shadow: 0 1px 2px rgba(0, 6, 12, 0.55);
+}
+
+/* 地球转到面板背后时，面板下半段会整体变亮，这两类是 7~8px 的小字，
+   必须把自身亮度提一档，否则先被冲掉的就是它们 */
+#telemetry .t-lab,
+#telemetry .t-sub,
+#panel .sec-foot {
+  color: rgba(158, 198, 234, 0.72);
+}

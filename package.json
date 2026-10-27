@@ -1,0 +1,17 @@
+{
+  "name": "orbit-ship-3d",
+  "version": "1.0.0",
+  "description": "ORB-7 orbital work ship — interactive Three.js scene",
+  "main": "index.js",
+  "scripts": {
+    "start": "node serve.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "private": true
+}

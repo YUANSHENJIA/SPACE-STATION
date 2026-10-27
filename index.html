@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>低地球轨道 · 空间站与卫星编队</title>
+    <!-- 内联图标：省一次 favicon 请求，也避免 404 报错 -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230b1a2a'/%3E%3Ccircle cx='16' cy='16' r='5' fill='none' stroke='%235fd0ff' stroke-width='2'/%3E%3Cellipse cx='16' cy='16' rx='13' ry='5.5' fill='none' stroke='%233f7fb8' stroke-width='1.6' transform='rotate(-28 16 16)'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./vendor/three/build/three.module.js",
+          "three/addons/": "./vendor/three/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+    <div class="vignette"></div>
+
+    <div class="hud hud-top">
+      <div class="tag"><span class="dot"></span>低地球轨道 · LEO 400 KM</div>
+      <h1>轨道前哨站 · 卫星编队</h1>
+      <p class="sub">环形居住舱自转供能 · 太阳翼展开 · 编队沿轨跟随</p>
+    </div>
+
+    <div class="hint">左键旋转 · 空格+左键平移 · 滚轮缩放 · 右键平移</div>
+
+    <!-- ------------------ 左侧：飞行参数（重点放大） ------------------ -->
+    <aside id="telemetry">
+      <i class="t-corner tl"></i>
+      <i class="t-corner tr"></i>
+      <i class="t-corner bl"></i>
+      <i class="t-corner br"></i>
+
+      <div class="t-head">
+        <div class="t-head-main">
+          <span class="t-badge">TLM</span>
+          <div>
+            <div class="t-kicker">FLIGHT TELEMETRY · LEO-400</div>
+            <div class="t-title">飞行参数</div>
+          </div>
+        </div>
+        <div class="t-live"><i></i>LIVE</div>
+      </div>
+
+      <!-- 四个核心参数：放大成主视觉 -->
+      <div class="t-hero">
+        <div class="t-hero-cell">
+          <div class="t-lab">轨道速度 <span>VELOCITY</span></div>
+          <div class="t-big"><b id="tlmVel">7.672</b><em>km/s</em></div>
+          <div class="t-sub" id="tlmVelSub">27,622 km/h</div>
+        </div>
+        <div class="t-hero-cell">
+          <div class="t-lab">距地高度 <span>ALTITUDE</span></div>
+          <div class="t-big"><b id="tlmAlt">400.0</b><em>km</em></div>
+          <div class="t-sub">近地轨道 · LEO</div>
+        </div>
+        <div class="t-hero-cell">
+          <div class="t-lab">环绕周期 <span>PERIOD</span></div>
+          <div class="t-big"><b id="tlmPeriod">1.54</b><em>h</em></div>
+          <div class="t-sub" id="tlmPeriodSub">92 分 24 秒</div>
+        </div>
+        <div class="t-hero-cell">
+          <div class="t-lab">每日圈数 <span>REV / DAY</span></div>
+          <div class="t-big"><b id="tlmRevs">15.57</b><em>圈</em></div>
+          <div class="t-sub">倾角 51.6°</div>
+        </div>
+      </div>
+
+      <!-- 次级参数：横排三格 -->
+      <div class="t-strip">
+        <div><span>轨道半径</span><b id="tlmRad">6,771</b><em>km</em></div>
+        <div><span>轨道周长</span><b id="tlmCirc">42,543</b><em>km</em></div>
+        <div><span>累计航程</span><b id="tlmOdo">0</b><em>km</em></div>
+      </div>
+
+      <!-- 四个滑块收在同一块里：编队两项 + 光照两项 -->
+      <div class="t-ctrl">
+        <div class="t-ctrl-head"><span>编队与光照</span><b>FORMATION · SUN</b></div>
+
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="tlmCount">小卫星数量</label>
+            <b id="tlmCountVal">20<em>颗</em></b>
+          </div>
+          <input id="tlmCount" class="t-range" type="range" min="1" max="20" step="1" value="20" />
+        </div>
+
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="tlmGap">编队间距</label>
+            <b id="tlmGapVal">80<em>km</em></b>
+          </div>
+          <input id="tlmGap" class="t-range" type="range" min="5" max="80" step="1" value="80" />
+        </div>
+
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="sunPow">太阳强度</label>
+            <b><span id="sunPowVal">100%</span></b>
+          </div>
+          <input id="sunPow" class="t-range" type="range" min="30" max="175" value="100" step="1" />
+        </div>
+
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="sunAz">太阳方位</label>
+            <b><span id="sunAzVal">26°</span></b>
+          </div>
+          <input id="sunAz" class="t-range" type="range" min="0" max="360" value="26" step="1" />
+        </div>
+
+        <!-- 附加轨道上的星链：与主编队（小卫星数量 / 编队间距）分开调。
+             结构与其余四根滑块完全一致（标签+读数 / 滑块）。 -->
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="laneCount">星链数量</label>
+            <b id="laneCountVal">20<em>颗</em></b>
+          </div>
+          <input id="laneCount" class="t-range" type="range" min="4" max="24" step="1" value="20" />
+        </div>
+
+        <div class="t-ctl">
+          <div class="t-ctl-top">
+            <label for="laneGap">星链间距</label>
+            <b id="laneGapVal">3,320<em>km</em></b>
+          </div>
+          <input id="laneGap" class="t-range" type="range" min="0" max="16600" step="10" value="3320" />
+        </div>
+
+        <div class="t-read">
+          <div><span>编队跨度</span><b id="tlmSpan">1,520 km</b></div>
+          <div><span>首尾时差</span><b id="tlmLag">198.1 s</b></div>
+        </div>
+      </div>
+
+      <!-- 光照区段：空间站此刻在地球的向光面还是地影里，一眼可见 -->
+      <section class="t-day">
+        <div class="sec-head">
+          <span>光照区段</span>
+          <b><span id="dayState">光面</span> · 距晨昏线 <span id="dayMargin">—</span></b>
+        </div>
+        <svg class="t-day-svg" viewBox="0 0 300 154" aria-hidden="true">
+          <defs>
+            <linearGradient id="dayLitG" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#2f7fb8" />
+              <stop offset="52%" stop-color="#5fc0f0" />
+              <stop offset="78%" stop-color="#a9e3ff" />
+              <!-- 最右缘略收，读起来才是球面而不是一块平的发光片 -->
+              <stop offset="100%" stop-color="#63aed6" />
+            </linearGradient>
+            <radialGradient id="daySunG" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#f2fdff" />
+              <stop offset="45%" stop-color="#9fe0ff" stop-opacity="0.7" />
+              <stop offset="100%" stop-color="#4aa8e8" stop-opacity="0" />
+            </radialGradient>
+            <radialGradient id="dayEarthG" cx="34%" cy="34%" r="72%">
+              <stop offset="0%" stop-color="#10283f" />
+              <stop offset="100%" stop-color="#050c16" />
+            </radialGradient>
+            <linearGradient id="eclG" x1="1" y1="0" x2="0" y2="0">
+              <stop offset="0%" stop-color="#3f8ec4" stop-opacity="0.42" />
+              <stop offset="100%" stop-color="#3f8ec4" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+
+          <!-- 地影锥：太阳在右，地球挡出的阴影往左拉长，站点穿过这里就是日食 -->
+          <path d="M99 45 L2 15 L2 135 L99 105 Z" fill="url(#eclG)" />
+          <g stroke="rgba(86,158,210,0.3)" stroke-width="0.8" stroke-dasharray="3 4">
+            <path d="M99 45 L2 15" />
+            <path d="M99 105 L2 135" />
+          </g>
+
+          <!-- 轨道圈 -->
+          <circle
+            cx="128"
+            cy="75"
+            r="68"
+            fill="none"
+            stroke="rgba(110,190,255,0.18)"
+            stroke-dasharray="3 5"
+          />
+
+          <!-- 太阳：固定在右侧，图示即“太阳在右”的局部坐标 -->
+          <circle cx="272" cy="75" r="17" fill="url(#daySunG)" />
+          <circle cx="272" cy="75" r="4.8" fill="#eafcff" />
+          <g stroke="rgba(150,215,255,0.3)" stroke-width="1" stroke-linecap="round">
+            <path d="M248 57h-38M248 75h-38M248 93h-38" />
+          </g>
+
+          <!-- 地球：暗面打底，右半圆叠亮面，中间一条晨昏线 -->
+          <circle
+            cx="128"
+            cy="75"
+            r="42"
+            fill="url(#dayEarthG)"
+            stroke="rgba(110,190,255,0.3)"
+            stroke-width="0.9"
+          />
+          <path d="M128 33 A42 42 0 0 1 128 117 Z" fill="url(#dayLitG)" opacity="0.92" />
+          <line
+            x1="128"
+            y1="33"
+            x2="128"
+            y2="117"
+            stroke="rgba(190,238,255,0.5)"
+            stroke-dasharray="2 3"
+          />
+
+          <!-- 编队：空间站后方的卫星按数量/间距排成小点，脚本每帧刷新 -->
+          <g id="dayChain"></g>
+
+          <!-- 空间站：位置由脚本按真实相对太阳角度刷新 -->
+          <g id="dayCraft" transform="translate(128 7)">
+            <circle
+              class="t-day-halo"
+              r="9"
+              fill="none"
+              stroke="rgba(140,240,255,0.42)"
+              stroke-width="1"
+            />
+            <circle r="5.6" fill="none" stroke="rgba(140,240,255,0.2)" stroke-width="0.6" />
+            <circle r="2.8" fill="#d6faff" />
+          </g>
+        </svg>
+      </section>
+    </aside>
+
+    <!-- ------------------ 右侧：作业控制（按功能分组） ------------------ -->
+    <aside id="panel">
+      <i class="t-corner tl"></i>
+      <i class="t-corner tr"></i>
+      <i class="t-corner bl"></i>
+      <i class="t-corner br"></i>
+
+      <div class="panel-head">
+        <div class="t-head-main">
+          <span class="t-badge">CTL</span>
+          <div>
+            <div class="t-kicker">ORBITAL CONTROL · ORB-7</div>
+            <div class="panel-title">作业控制台</div>
+          </div>
+        </div>
+        <button id="panel-toggle" class="ghost">收起</button>
+      </div>
+
+      <div class="panel-body">
+        <div class="grp"><span>轨道</span><b>ORBIT</b><i></i></div>
+
+        <section>
+          <div class="sec-head">
+            <span>轨道数量</span>
+            <b id="orbitVal">3 条</b>
+          </div>
+          <label class="slider">
+            <span>轨道</span>
+            <input id="orbitCount" type="range" min="1" max="8" step="1" value="3" />
+          </label>
+          <div class="row two" style="margin-top: 3px">
+            <button id="btn-line-on">显示轨道线</button>
+            <button id="btn-line-off">隐藏轨道线</button>
+          </div>
+          <div class="sec-foot">交错分层 · 最多 8 条 <b id="lineVal">显示</b></div>
+        </section>
+
+        <div class="grp"><span>机动</span><b>MANEUVER</b><i></i></div>
+
+        <section>
+          <div class="sec-head">
+            <span>轨道行进</span>
+            <b id="moveVal">悬停保持</b>
+          </div>
+          <div class="row three">
+            <button data-move="1">前进 ▶</button>
+            <button data-move="0" class="on">悬停</button>
+            <button data-move="-1">◀ 后退</button>
+          </div>
+          <div class="sec-foot">沿队列延长线的巡航速度 <b id="moveSpeed">0.0 km/s</b></div>
+        </section>
+
+        <!-- 运行速度就挂在轨道行进下面：两者都是「让场景动起来」的控制，分成两栏反而要来回找 -->
+        <section>
+          <div class="sec-head">
+            <span>运行速度</span>
+            <b><span id="speedVal">7.672</span> <i>km/s</i></b>
+          </div>
+          <div class="row">
+            <button id="speedDown">− 减速</button>
+            <button id="btn-pause">暂停</button>
+            <button id="speedUp">加速 ＋</button>
+          </div>
+          <div class="sec-foot">场景时间倍率 <b id="speedRatio">1.0×</b></div>
+        </section>
+
+        <section>
+          <div class="sec-head"><span>姿态控制</span><b>RCS</b></div>
+          <div class="dpad">
+            <button data-att="up">▲ 上仰</button>
+            <button data-att="fwd">◀ 前倾</button>
+            <button data-att="right">▶ 右偏</button>
+            <button data-att="down">▼ 下俯</button>
+            <button data-att="back">▶ 后倾</button>
+            <button data-att="left">◀ 左偏</button>
+          </div>
+          <button id="btn-att-reset" class="wide">一键复位 ↺</button>
+        </section>
+
+        <div class="grp"><span>构型</span><b>STRUCTURE</b><i></i></div>
+
+        <section>
+          <div class="sec-head">
+            <span>太阳能阵列</span>
+            <b id="deployLabel">已展开</b>
+          </div>
+          <div class="row">
+            <button id="btn-deploy">展开</button>
+            <button id="btn-retract">收起</button>
+            <button id="btn-suntrack">自动对日</button>
+          </div>
+          <div class="bar"><i id="deployBar"></i></div>
+          <div class="sec-foot">太阳翼姿态 <b id="sunVal">固定角度</b></div>
+        </section>
+
+        <section>
+          <div class="sec-head">
+            <span>乘员活动</span>
+            <b id="evaLabel">舱内待命</b>
+          </div>
+          <div class="row">
+            <button id="btn-eva-out">宇航员出舱</button>
+            <button id="btn-eva-in">返回舱内</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="sec-head">
+            <span>交会对接</span>
+            <b id="dockLabel">保持距离</b>
+          </div>
+          <div class="row">
+            <button id="btn-dock">飞船对接</button>
+            <button id="btn-undock">分离</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="sec-head">
+            <span>补给发射</span>
+            <b id="launchVal">待命</b>
+          </div>
+          <button id="btn-launch" class="wide lifter">发射运载飞船 ↑</button>
+          <div class="sec-foot">地面发射场 → 腹部对接口 <b id="launchDist">—</b></div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- --------- 底部：编队造型 · 观察视角 · 视角辅助（造型与辅助分列视角条两侧） --------- -->
+    <div id="dock">
+      <div class="dock-side dock-left">
+        <div class="chips" id="styleGroup">
+          <button data-style="starlink" data-short="星链" class="on">星链平台</button>
+          <button data-style="probe" data-short="通信">通信卫星</button>
+          <button data-style="shuttle" data-short="穿梭">小型穿梭机</button>
+          <button data-style="orbiter" data-short="作业">轨道作业船</button>
+        </div>
+      </div>
+
+      <div id="viewbar" role="group" aria-label="观察视角">
+        <button data-view="free" class="on">自由</button>
+        <button data-view="station">空间站</button>
+        <button data-view="fleet">编队</button>
+        <button data-view="sat">卫星</button>
+        <button data-view="ship">飞船</button>
+      </div>
+
+      <div class="dock-side dock-right">
+        <button id="btn-auto" data-short="环绕">自动环绕</button>
+        <button id="btn-fixed" data-short="固定">固定视角 ⤢</button>
+      </div>
+    </div>
+
+    <div id="loader">
+      <div class="loader-inner">
+        <div class="ring"></div>
+        <div class="loader-text">正在构建轨道场景…</div>
+      </div>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>
